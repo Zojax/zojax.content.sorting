@@ -1,0 +1,188 @@
+=========================
+Content sorting extension
+=========================
+
+  >>> from zope import interface, event
+  >>> from zope.proxy import removeAllProxies
+  >>> from zope.lifecycleevent import ObjectCreatedEvent
+  >>> from zope.lifecycleevent import ObjectModifiedEvent
+  >>> from zope.app.intid import IntIds
+  >>> from zope.app.intid.interfaces import IIntIds
+  >>> from zope.app.component.hooks import setSite
+  >>> from zope.app.testing.functional import getRootFolder
+  >>> from zope.testbrowser.testing import Browser
+  >>> from zope.app.security.interfaces import IAuthentication
+  >>> from zope.security.management import newInteraction, endInteraction
+  >>> from zojax.content.sorting import interfaces
+  >>> from zojax.content.sorting.tests.tests import Content, Container
+  >>> from zojax.content.type.interfaces import IItem, IOrder, IContentContainer
+  >>> from zojax.extensions.interfaces import IExtensible
+
+IIntIds utility
+
+  >>> root = getRootFolder()
+  >>> interface.alsoProvides(
+  ...     root, IExtensible, IContentContainer, interfaces.ISortable)
+  >>> root['ids'] = IntIds()
+  >>> sm = root.getSiteManager()
+  >>> sm.registerUtility(root['ids'], IIntIds)
+  >>> setSite(root)
+  >>> ids = root['ids']
+  >>> _t = ids.register(root)
+
+Install catalog
+
+  >>> from zojax.catalog.catalog import Catalog, ICatalog
+  >>> root['catalog'] = Catalog()
+  >>> sm.registerUtility(root['catalog'], ICatalog)
+
+Content
+
+  >>> class Participation:
+  ...     interaction = None
+  ...     def __init__(self, principal):
+  ...         self.principal = principal
+
+  >>> auth = sm.getUtility(IAuthentication)
+  >>> endInteraction()
+  >>> newInteraction(Participation(auth.getPrincipal('zope.mgr')))
+
+  >>> content1 = Content('Content 1')
+  >>> event.notify(ObjectCreatedEvent(content1))
+  >>> content2 = Content('Content 2')
+  >>> event.notify(ObjectCreatedEvent(content2))
+  >>> content3 = Content('Content 3')
+  >>> event.notify(ObjectCreatedEvent(content3))
+  >>> content4 = Content('Content 4')
+  >>> event.notify(ObjectCreatedEvent(content4))
+
+  >>> root['content1'] = content1
+  >>> root['content2'] = content2
+  >>> root['content3'] = content3
+  >>> root['content4'] = content4
+
+  >>> endInteraction()
+
+  >>> actor = Browser()
+  >>> actor.addHeader("Authorization", "Basic mgr:mgrpw")
+  >>> actor.handleErrors = False
+  >>> actor.open("http://localhost/listing.html")
+  >>> print actor.contents
+  <html>
+  ...<td><a href="http://localhost/content1/">content1</a></td>...
+  ...<td><a href="http://localhost/content2/">content2</a></td>...
+  ...<td><a href="http://localhost/content3/">content3</a></td>...
+  ...<td><a href="http://localhost/content4/">content4</a></td>...
+  </html>
+
+
+Sorting extension
+-----------------
+
+  >>> actor.open("http://localhost/++extensions++/")
+  >>> actor.getLink('Sorting').click()
+  >>> actor.getControl('Sort type').value = ['title']
+  >>> actor.getControl(name='form.buttons.save').click()
+
+  >>> user = Browser()
+  >>> user.addHeader("Authorization", "Basic mgr:mgrpw")
+  >>> user.handleErrors = False
+  >>> user.open("http://localhost/listing.html")
+  >>> print user.contents
+  <html>
+  ...<td>Content 1</td>...
+  ...<td>Content 2</td>...
+  ...<td>Content 3</td>...
+  ...<td>Content 4</td>...
+  </html>
+
+  >>> endInteraction()
+  >>> newInteraction(Participation(auth.getPrincipal('zope.mgr')))
+
+  >>> content2.title = u'AAA'
+  >>> event.notify(ObjectModifiedEvent(content2))
+
+
+IOrder
+------
+
+  >>> order = IOrder(root)
+  >>> len(order)
+  4
+
+  >>> [c for c in order]
+  [0, 1, 2, 3]
+
+  >>> order.get(0).title
+  u'AAA'
+
+  >>> [c.__name__ for c in order.values()]
+  [u'content2', u'content1', u'content3', u'content4']
+
+  >>> [(name, c.title) for name, c in order.items()]
+  [(0, u'AAA'), (1, u'Content 1'), (2, u'Content 3'), (3, u'Content 4')]
+
+  >>> 0 in order
+  True
+
+
+ISorting
+--------
+
+  >>> sorting = interfaces.ISorting(root)
+  >>> [c.title for c in sorting.getItems()]
+  [u'AAA', u'Content 1', u'Content 3', u'Content 4']
+
+  >>> event.notify(ObjectModifiedEvent(content2))
+
+  >>> [c.title for c in sorting.getItems()]
+  [u'AAA', u'Content 1', u'Content 3', u'Content 4']
+
+  >>> content4.title = u'BBB'
+  >>> event.notify(ObjectModifiedEvent(content4))
+
+  >>> [c.title for c in sorting.getItems()]
+  [u'AAA', u'BBB', u'Content 1', u'Content 3']
+
+  >>> sorting.type = 'modified'
+  >>> sorting.order = 'direct'
+  >>> event.notify(ObjectModifiedEvent(sorting))
+
+  >>> [c.title for c in sorting.getItems()]
+  [u'Content 1', u'Content 3', u'AAA', u'BBB']
+
+  >>> sorting.type = 'created'
+  >>> event.notify(ObjectModifiedEvent(sorting))
+  >>> [c.title for c in sorting.getItems()]
+  [u'Content 1', u'AAA', u'Content 3', u'BBB']
+
+  >>> del root['content1']
+  >>> [c.title for c in sorting.getItems()]
+  [u'AAA', u'Content 3', u'BBB']
+
+
+Edit content wizard
+-------------------
+
+  >>> container = Container()
+  >>> event.notify(ObjectModifiedEvent(container))
+  >>> root['container'] = container
+
+  >>> sorting = interfaces.ISorting(container)
+  >>> sorting.type, sorting.order
+  (u'name', 'direct')
+
+  >>> endInteraction()
+
+  >>> actor.open("http://localhost/container/context.html")
+  >>> actor.getControl('Sort type').value = ['title']
+  >>> actor.getControl(name="content.edit.buttons.save").click()
+
+  >>> newInteraction(Participation(auth.getPrincipal('zope.mgr')))
+
+  >>> sorting = interfaces.ISorting(container)
+  >>> sorting.type, sorting.order
+  (u'title', 'direct')
+
+  >>> endInteraction()
+  >>> setSite(None)

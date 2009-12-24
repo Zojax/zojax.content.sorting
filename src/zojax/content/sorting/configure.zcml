@@ -1,0 +1,68 @@
+<configure
+   xmlns="http://namespaces.zope.org/zope"
+   xmlns:i18n="http://namespaces.zope.org/i18n"
+   xmlns:zojax="http://namespaces.zope.org/zojax"
+   i18n_domain="zojax.content.sorting">
+
+  <!-- content permissions -->
+  <zojax:extension
+     name="sorting"
+     title="Sorting"
+     description="Contents sorting configuration."
+     for=".interfaces.ISortable"
+     schema=".interfaces.ISorting"
+     class=".extension.SortingExtension"
+     permission="zojax.ModifyContent" />
+
+  <utility
+     name="sortingContext"
+     component=".index.sortingContextIndex"
+     provides="zojax.catalog.interfaces.ICatalogIndexFactory" />
+
+  <subscriber handler=".extension.idAdded" />
+  <subscriber handler=".extension.idRemoved" />
+  <subscriber handler=".extension.contentModified" />
+  <subscriber handler=".extension.sortingExtensionModified" />
+
+  <!-- IOrder adapter -->
+  <adapter
+     for=".interfaces.ISortable" factory=".order.Order" />
+
+  <!-- sorting types -->
+  <utility
+     factory=".stypes.SortByName" />
+
+  <utility
+     name="name"
+     factory=".stypes.SortByName" />
+
+  <utility
+     name="title"
+     factory=".stypes.SortByTitle" />
+
+  <utility
+     name="modified"
+     factory=".stypes.SortByModified" />
+
+  <utility
+     name="created"
+     factory=".stypes.SortByCreation" />
+
+  <!-- vocabulary -->
+  <utility
+     name="content.sorting-types"
+     factory=".vocabulary.SortingTypesVocabulary" />
+
+  <!-- sorting edit form -->
+  <zojax:pagelet
+     name="content.sorting"
+     type="form.subform"
+     for=".interfaces.ISortable
+    zojax.content.forms.interfaces.IContentStep"
+     class=".form.SortingEditForm"
+     weight="200" />
+
+  <!-- translations -->
+  <i18n:registerTranslations directory="locales"/>
+
+</configure>
