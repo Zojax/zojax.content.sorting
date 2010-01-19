@@ -1,32 +1,8 @@
-=======
-CHANGES
-=======
-
-1.0.4 (Unreleased)
+1.0.2 (Unreleased)
 ------------------
 
 
-1.0.3 (2009-08-11)
+1.0.1 (2010-01-19)
 ------------------
 
-- Use noPublishing for catalog seaching
-
-- Copyright changed to 'Zope Foundation and Contributors'
-
-
-1.0.2 (2009-05-06)
-------------------
-
-- Do not use z3c.autoinclude
-
-
-1.0.1 (2009-03-15)
-------------------
-
-- Added pot file
-
-
-1.0.0 (2009-03-11)
-------------------
-
-- Initial release.
+- zojax initial release
