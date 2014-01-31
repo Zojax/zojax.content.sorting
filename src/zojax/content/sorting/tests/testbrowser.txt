@@ -34,19 +34,9 @@ Install catalog
 
   >>> from zojax.catalog.catalog import Catalog, ICatalog
   >>> root['catalog'] = Catalog()
-  >>> sm.registerUtility(root['catalog'], ICatalog)
+
 
 Content
-
-  >>> class Participation:
-  ...     interaction = None
-  ...     def __init__(self, principal):
-  ...         self.principal = principal
-
-  >>> auth = sm.getUtility(IAuthentication)
-  >>> endInteraction()
-  >>> newInteraction(Participation(auth.getPrincipal('zope.mgr')))
-
   >>> content1 = Content('Content 1')
   >>> event.notify(ObjectCreatedEvent(content1))
   >>> content2 = Content('Content 2')
@@ -61,7 +51,18 @@ Content
   >>> root['content3'] = content3
   >>> root['content4'] = content4
 
+
+  >>> class Participation:
+  ...     interaction = None
+  ...     def __init__(self, principal):
+  ...         self.principal = principal
+
+  >>> auth = sm.getUtility(IAuthentication)
   >>> endInteraction()
+  >>> newInteraction(Participation(auth.getPrincipal('zope.mgr')))
+  >>> endInteraction()
+
+
 
   >>> actor = Browser()
   >>> actor.addHeader("Authorization", "Basic mgr:mgrpw")
@@ -78,7 +79,6 @@ Content
 
 Sorting extension
 -----------------
-
   >>> actor.open("http://localhost/++extensions++/")
   >>> actor.getLink('Sorting').click()
   >>> actor.getControl('Sort type').value = ['title']
@@ -101,11 +101,10 @@ Sorting extension
 
   >>> content2.title = u'AAA'
   >>> event.notify(ObjectModifiedEvent(content2))
-
+  >>> sm.registerUtility(root['catalog'], ICatalog)
 
 IOrder
 ------
-
   >>> order = IOrder(root)
   >>> len(order)
   4
@@ -126,47 +125,70 @@ IOrder
   True
 
 
+
 ISorting
 --------
-
   >>> sorting = interfaces.ISorting(root)
   >>> [c.title for c in sorting.getItems()]
   [u'AAA', u'Content 1', u'Content 3', u'Content 4']
 
+  >>> sm.unregisterUtility(root['catalog'], ICatalog)
+  True
   >>> event.notify(ObjectModifiedEvent(content2))
+  >>> sm.registerUtility(root['catalog'], ICatalog)
 
   >>> [c.title for c in sorting.getItems()]
   [u'AAA', u'Content 1', u'Content 3', u'Content 4']
 
   >>> content4.title = u'BBB'
+
+  >>> sm.unregisterUtility(root['catalog'], ICatalog)
+  True
   >>> event.notify(ObjectModifiedEvent(content4))
+  >>> sm.registerUtility(root['catalog'], ICatalog)
 
   >>> [c.title for c in sorting.getItems()]
   [u'AAA', u'BBB', u'Content 1', u'Content 3']
 
   >>> sorting.type = 'modified'
   >>> sorting.order = 'direct'
+
+  >>> sm.unregisterUtility(root['catalog'], ICatalog)
+  True
   >>> event.notify(ObjectModifiedEvent(sorting))
+  >>> sm.registerUtility(root['catalog'], ICatalog)
 
   >>> [c.title for c in sorting.getItems()]
   [u'Content 1', u'Content 3', u'AAA', u'BBB']
 
   >>> sorting.type = 'created'
+  >>> sm.unregisterUtility(root['catalog'], ICatalog)
+  True
   >>> event.notify(ObjectModifiedEvent(sorting))
+  >>> sm.registerUtility(root['catalog'], ICatalog)
+
   >>> [c.title for c in sorting.getItems()]
   [u'Content 1', u'AAA', u'Content 3', u'BBB']
 
+  >>> sm.unregisterUtility(root['catalog'], ICatalog)
+  True
   >>> del root['content1']
+  >>> sm.registerUtility(root['catalog'], ICatalog)
+
   >>> [c.title for c in sorting.getItems()]
   [u'AAA', u'Content 3', u'BBB']
 
 
+
 Edit content wizard
 -------------------
-
   >>> container = Container()
+
+  >>> sm.unregisterUtility(root['catalog'], ICatalog)
+  True
   >>> event.notify(ObjectModifiedEvent(container))
   >>> root['container'] = container
+  >>> sm.registerUtility(root['catalog'], ICatalog)
 
   >>> sorting = interfaces.ISorting(container)
   >>> sorting.type, sorting.order
